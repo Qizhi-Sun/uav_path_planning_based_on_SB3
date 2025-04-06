@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../UAV-path-planning/.idea/UAV-path-planning.iml" filepath="$PROJECT_DIR$/../UAV-path-planning/.idea/UAV-path-planning.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../graduate_design/.idea/graduate_design.iml" filepath="$PROJECT_DIR$/../graduate_design/.idea/graduate_design.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/stable-baselin3.iml" filepath="$PROJECT_DIR$/.idea/stable-baselin3.iml" />
+    </modules>
+  </component>
+</project>
