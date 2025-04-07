@@ -94,7 +94,7 @@ class UAVEnv(gym.Env):
 
 
         '''
-        r_goal
+        r_follower
         '''
         x_diff = self.state[0]-x_goal
         y_diff = self.state[1]-y_goal
