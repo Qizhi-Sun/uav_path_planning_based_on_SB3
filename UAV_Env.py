@@ -116,8 +116,8 @@ class UAVEnv(gym.Env):
             self.truncated = True
 
 
-        # self.r = r_goal + r_edge + r_obstacle
-        self.r = r_goal + r_edge
+        self.r = r_goal + r_edge + r_obstacle
+        # self.r = r_goal + r_edge
         return np.array(self.state, dtype=np.float32), float(self.r), self.done, self.truncated, self.info
 
     def reset(self, seed = None):
@@ -253,22 +253,18 @@ class SetConfig:
             self.Init_state = uav_init_pos_WH
             for i in range(2500):
                 self.buildings[i][4] = 0
-            # for i in range(13,17):
-            #     for j in range(13,17):
-            #         idx = j * 50
-            #         self.buildings[i+idx][4] = 2
+            for i in range(10,20):
+                for j in range(10,20):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 2
             for i in range(20,30):
                 for j in range(20,30):
                     idx = j * 50
                     self.buildings[i+idx][4] = 2
-            # for i in range(33,37):
-            #     for j in range(33,37):
-            #         idx = j * 50
-            #         self.buildings[i+idx][4] = 2
-            # for i in range(30,50):
-            #     for j in range(30,50):
-            #         idx = j * 50
-            #         self.buildings[i+idx][4] = 3
+            for i in range(30,40):
+                for j in range(30,40):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 2
         else:
             print("参数错误")
             sys.exit()

@@ -17,18 +17,23 @@ y_goal = match_pairs_WH[0][2][1]
 z_goal = match_pairs_WH[0][2][2]
 
 # 初始化无人机环境
-class UAVEnv(gym.Env):
-    def __init__(self, uav_num, map_w, map_h, map_z, Init_state, buildings):
-        super(UAVEnv, self).__init__()
+class UAVEnv_F(gym.Env):
+    def __init__(self, uav_num, map_w, map_h, map_z, Init_state, buildings, model):
+        super(UAVEnv_F, self).__init__()
         self.uav_num = uav_num
         self.map_w = map_w
         self.map_h = map_h
         self.map_z = map_z
-        self.position_pool = [[] for _ in range(self.uav_num)]
+        '''
+        这里的uav_num也手动定义了
+        '''
+        self.position_pool = [[] for _ in range(2)]
         self.state = Init_state
+        self.state_leader = [2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
         self.buildings = buildings
         self.info = {}
         self.r = [0 for _ in range(self.uav_num)]
+        self.model = model
         self.done = False
         self.truncated = False
         self.env_t = 0
@@ -43,18 +48,22 @@ class UAVEnv(gym.Env):
     # 记录无人机的飞行轨迹函数
     def recorder(self, env_t):
         if env_t % 2 == 1:
-            for i in range(self.uav_num):
-                x, y, z = self.state[:3]
-                position = [x, y, z, env_t]
-                self.position_pool[i].append(position)
+            x, y, z = self.state[:3]
+            x_1, y_1, z_1 = self.state_leader[:3]
+            position = [x, y, z, env_t]
+            position_1 = [x_1, y_1, z_1, env_t]
+            self.position_pool[0].append(position)
+            self.position_pool[1].append(position_1)
 
     # 无人机的动作更新函数
     def step(self, actions):
         self.env_t += 1
-        self.state[:3] += actions[:3]  # update x, y, z
+        self.state[:3] += actions[:3]  # update follower x, y, z
+        leader_speed, _ = self.model.predict(self.state_leader) # 得到领导者的速度
+        self.state_leader[:3] += leader_speed   #更新领导者 x y z
 
         '''
-        r_edge
+        边界
         '''
         if self.state[0]<1 or self.state[0]>49 or self.state[1]<1 or self.state[1]>49 or self.state[2]<1 or self.state[2]>9:
             r_edge = -5
@@ -66,66 +75,109 @@ class UAVEnv(gym.Env):
         self.state[2] = np.clip(self.state[2], 0, 10)
 
         '''
-        r_obstacle
+        机毁人亡
         '''
-        pos_x_diff = self.state[0] - 25 # uav[x] - obstacle_x
-        pos_y_diff = self.state[1] - 25 # uav[y] - obstacle_y
-        distance_to_obstacle = math.hypot(pos_x_diff, pos_y_diff) # 距离障碍物中心的距离
+        pos_x_diff_leader = self.state_leader[0] - 25 # uav[x] - obstacle_x
+        pos_y_diff_leader = self.state_leader[1] - 25 # uav[y] - obstacle_y
+        pos_x_diff_follower = self.state[0] - 25
+        pos_y_diff_follower = self.state[1] - 25
+        distance_to_obstacle = math.hypot(pos_x_diff_leader, pos_y_diff_leader) # 距离障碍物中心的距离
+        distance_to_obstacle_follower = math.hypot(pos_x_diff_follower, pos_y_diff_follower) # 距离障碍物中心的距离
+
         if distance_to_obstacle <= 10:
-            r_obstacle_1 = -(10 - distance_to_obstacle) * 5
-            self.state[6] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
-        else:
-            r_obstacle_1 = 0
-        grid_x = int(self.state[0])
-        grid_y = int(self.state[1])
+            self.state_leader[6] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
+        grid_x = int(self.state_leader[0])
+        grid_y = int(self.state_leader[1])
         if self.buildings[grid_x * 50 + grid_y][4] == 2:
             height = 10
         elif self.buildings[grid_x * 50 + grid_y][4] == 3:
             height = 10
         else:
             height = 0
-        if self.state[2] <= height:
-            r_obstacle = -500
-            self.state[6] = 1
+        if self.state_leader[2] <= height:
+            self.state_leader[6] = 1
             self.done = True
-            print("!!!!!!!!!!!!!!! down !!!!!!!!!!!!!!!!!")
+            print("!!!!!!!!!!!!!!! leader down !!!!!!!!!!!!!!!!!")
+
+        if distance_to_obstacle_follower <= 10:
+            self.state[6] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
+        grid_x_f = int(self.state[0])
+        grid_y_f = int(self.state[1])
+        if self.buildings[grid_x_f * 50 + grid_y_f][4] == 2:
+            height = 10
+        elif self.buildings[grid_x_f * 50 + grid_y_f][4] == 3:
+            height = 10
         else:
-            r_obstacle = r_obstacle_1
-
+            height = 0
+        if self.state[2] <= height:
+            self.state[6] = 1
+            r_obstacle = -10
+            self.done = True
+            print("!!!!!!!!!!!!!!! follower down !!!!!!!!!!!!!!!!!")
+        else:
+            r_obstacle = 0
 
         '''
-        r_follower
+        抵达终点
         '''
-        x_diff = self.state[0]-x_goal
-        y_diff = self.state[1]-y_goal
-        z_diff = self.state[2]-z_goal
-        last_distance = math.hypot(self.state[3], self.state[4], self.state[5])
-        self.state[3] = x_diff
-        self.state[4] = y_diff
-        self.state[5] = z_diff
+        x_diff = self.state_leader[0]-x_goal
+        y_diff = self.state_leader[1]-y_goal
+        z_diff = self.state_leader[2]-z_goal
+        self.state_leader[3] = x_diff
+        self.state_leader[4] = y_diff
+        self.state_leader[5] = z_diff
         distance_to_goal = math.hypot(x_diff, y_diff, z_diff)
         if distance_to_goal <= 2:
             self.done = True
-            r_goal = 500
             print("!!!!!!!!!!!!!!! UAV HAVE BEEN FINAL !!!!!!!!!!!!!!!")
-        else:
-            # r_goal = -0.05 * distance_to_goal
-            r_goal = 10 * (last_distance - distance_to_goal)
 
+        '''
+        r_team_keep
+        '''
+        x_diff_f_to_l = self.state_leader[0] - self.state[0]
+        y_diff_f_to_l = self.state_leader[1] - self.state[1]
+        z_diff_f_to_l = self.state_leader[2] - self.state[2]
+        self.state[3] = self.state_leader[0]
+        self.state[4] = self.state_leader[1]
+        self.state[5] = self.state_leader[2]
+
+        distance_to_leader = math.hypot(x_diff_f_to_l, y_diff_f_to_l, z_diff_f_to_l)
+
+        if distance_to_leader > 0.8:
+            r_team_keep = -1 * distance_to_leader
+        else:
+            r_team_keep = 0.5
+
+
+        '''
+        r_speed_same
+        '''
+        x_speed_diff = leader_speed[0] - actions[0]
+        y_speed_diff = leader_speed[1] - actions[1]
+        z_speed_diff = leader_speed[2] - actions[2]
+        speed_diff = math.hypot(x_speed_diff, y_speed_diff, z_speed_diff)
+        if speed_diff > 0.2:
+            r_speed_same = -1 * speed_diff
+        else:
+            r_speed_same = 0.5
+
+        '''
+        截断条件
+        '''
         if self.env_t >= 500:
             self.truncated = True
 
-
-        # self.r = r_goal + r_edge + r_obstacle
-        self.r = r_goal + r_edge
+        self.r = r_team_keep + r_speed_same + r_edge + r_obstacle
         return np.array(self.state, dtype=np.float32), float(self.r), self.done, self.truncated, self.info
 
     def reset(self, seed = None):
-        self.state =[2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
+        self.state =[1.6, 1.6, 1.6, 2, 2, 2, 0]
         self.r = 0
         self.done = False
         self.truncated = False
         self.env_t = 0
+        self.state_leader = [2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
+        self.state_follower2 = [2, 2, 1.6, 2, 2, 2, 0]
         return np.array(self.state, dtype=np.float32), self.info
 
     def timestamp(self):
@@ -205,7 +257,10 @@ class Render:
     # 绘制无人机
     def render3D(self):
         plt.ion()
-        for i in range(self.uav_num):
+        '''
+        !!!!!!!!!!!!!! 这里要手动改一下渲染的无人机个数 !!!!!!!!!!!!!!!
+        '''
+        for i in range(2):
             x_traj, y_traj, z_traj, _ = zip(*self.position_pool[i])
             if i == 0:
                 l = self.ax.plot(x_traj[-10:], y_traj[-10:], z_traj[-10:], color='gray', alpha=0.7, linewidth=2.0)
@@ -213,9 +268,9 @@ class Render:
                 head = self.ax.scatter(x_traj[-1], y_traj[-1], z_traj[-1], color='darkorange', s=30)
                 self.Head.append(head)
             if i == 1:
-                l = self.ax.plot(x_traj[-10:], y_traj[-10:], z_traj[-10:], color='gray', alpha=0.7, linewidth=2.0)
+                l = self.ax.plot(x_traj[-10:], y_traj[-10:], z_traj[-10:], color='deepskyblue', alpha=0.7, linewidth=2.0)
                 self.line.append(l)
-                head = self.ax.scatter(x_traj[-1], y_traj[-1], z_traj[-1], color='deepskyblue', s=30)
+                head = self.ax.scatter(x_traj[-1], y_traj[-1], z_traj[-1], color='gray', s=30)
                 self.Head.append(head)
             if i == 2:
                 l = self.ax.plot(x_traj[-10:], y_traj[-10:], z_traj[-10:], color='gray', alpha=0.7, linewidth=2.0)
@@ -223,10 +278,10 @@ class Render:
                 head = self.ax.scatter(x_traj[-1], y_traj[-1], z_traj[-1], color='gray', s=30)
                 self.Head.append(head)
         # 更新轨迹和无人机本体位置
-        while len(self.line) > self.uav_num:
+        while len(self.line) > 2:
             old_line = self.line.pop(0)
             old_line[0].remove()
-        while len(self.Head) > self.uav_num:
+        while len(self.Head) > 2:
             old_head = self.Head.pop(0)
             old_head.remove()
 
@@ -253,18 +308,18 @@ class SetConfig:
             self.Init_state = uav_init_pos_WH
             for i in range(2500):
                 self.buildings[i][4] = 0
-            # for i in range(13,17):
-            #     for j in range(13,17):
-            #         idx = j * 50
-            #         self.buildings[i+idx][4] = 2
-            for i in range(20,30):
-                for j in range(20,30):
+            for i in range(10,20):
+                for j in range(10,20):
                     idx = j * 50
                     self.buildings[i+idx][4] = 2
-            # for i in range(33,37):
-            #     for j in range(33,37):
-            #         idx = j * 50
-            #         self.buildings[i+idx][4] = 2
+            for i in range(23,27):
+                for j in range(23,27):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 2
+            for i in range(30,40):
+                for j in range(30,40):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 2
             # for i in range(30,50):
             #     for j in range(30,50):
             #         idx = j * 50
