@@ -12,6 +12,15 @@
 - 在main函数中加载预训练模型继续训练，或重新开始
 - 在test_block中快速对比评估模型性能或通过render渲染测试画面
 
+**执行训练**
+```
+python main.py
+```
+**执行测试**
+````
+python test_block_follower.py
+````
+
 ***后续工作***
 - 借助pygame实现更高性能的渲染
 - 解决DDPG算法不收敛的问题
