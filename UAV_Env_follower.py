@@ -111,9 +111,9 @@ class UAVEnv_F(gym.Env):
             height = 0
         if self.state[2] <= height:
             self.state[6] = 1
-            r_obstacle = -10
-            self.done = True
-            print("!!!!!!!!!!!!!!! follower down !!!!!!!!!!!!!!!!!")
+            r_obstacle = 0
+            # self.done = True
+            # print("!!!!!!!!!!!!!!! follower down !!!!!!!!!!!!!!!!!")
         else:
             r_obstacle = 0
 
@@ -308,16 +308,16 @@ class SetConfig:
             self.Init_state = uav_init_pos_WH
             for i in range(2500):
                 self.buildings[i][4] = 0
-            for i in range(10,20):
-                for j in range(10,20):
+            for i in range(13,17):
+                for j in range(13,17):
                     idx = j * 50
                     self.buildings[i+idx][4] = 2
             for i in range(23,27):
                 for j in range(23,27):
                     idx = j * 50
                     self.buildings[i+idx][4] = 2
-            for i in range(30,40):
-                for j in range(30,40):
+            for i in range(33,37):
+                for j in range(33,37):
                     idx = j * 50
                     self.buildings[i+idx][4] = 2
             # for i in range(30,50):
