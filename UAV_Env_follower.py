@@ -134,8 +134,8 @@ class UAVEnv_F(gym.Env):
         '''
         r_team_keep
         '''
-        x_diff_f_to_l = self.state_leader[0] - self.state[0]
-        y_diff_f_to_l = self.state_leader[1] - self.state[1]
+        x_diff_f_to_l = self.state_leader[0]- 2 - self.state[0]
+        y_diff_f_to_l = self.state_leader[1]- 2 - self.state[1]
         z_diff_f_to_l = self.state_leader[2] - self.state[2]
         self.state[3] = self.state_leader[0]
         self.state[4] = self.state_leader[1]
@@ -143,7 +143,7 @@ class UAVEnv_F(gym.Env):
 
         distance_to_leader = math.hypot(x_diff_f_to_l, y_diff_f_to_l, z_diff_f_to_l)
 
-        if distance_to_leader > 0.8:
+        if distance_to_leader > 0.5:
             r_team_keep = -1 * distance_to_leader
         else:
             r_team_keep = 0.5
@@ -177,7 +177,7 @@ class UAVEnv_F(gym.Env):
         self.truncated = False
         self.env_t = 0
         self.state_leader = [2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
-        self.state_follower2 = [2, 2, 1.6, 2, 2, 2, 0]
+        self.state_follower2 = [0, 0, 2, 0, 0, 2, 0]
         return np.array(self.state, dtype=np.float32), self.info
 
     def timestamp(self):
@@ -202,6 +202,7 @@ class Render:
         # 创建画布
         self.fig = plt.figure(figsize=(self.map_w, self.map_h))  # 设置画布大小
         self.ax = self.fig.add_subplot(111, projection='3d')  # 创建三维坐标系
+        self.ax.view_init(elev=90, azim=0)
         # 绘制目标点
         for index, pair in enumerate(match_pairs):
             aim = pair[2]

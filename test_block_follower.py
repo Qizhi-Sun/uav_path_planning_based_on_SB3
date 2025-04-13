@@ -21,7 +21,7 @@ env = UAVEnv_F(uav_num, map_w, map_h, map_z, Init_state, buildings, model)
 train_env = make_vec_env(lambda: env, n_envs=1)
 
 # 加载预训练模型
-model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_follower_4.zip', env=train_env)
+model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_follower_5.zip', env=train_env)
 # 创建一个新的模型
 # model_origin = SAC("MlpPolicy", train_env, verbose=0)
 
@@ -35,7 +35,7 @@ model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_follower_4.zi
 #     if done:
 #         break
 render = Render(uav_num, env.state, buildings, map_w, map_h, map_z, uav_r, env.position_pool, match_pairs)
-for i in range(100):
+for i in range(1):
     state, _ = env.reset()
     done = False
     truncated = False
@@ -45,5 +45,6 @@ for i in range(100):
         env_t = env.timestamp()
         env.recorder(env_t)
         render.render3D()
+        plt.savefig(fr'E:\RL\stable-baselin3\fig\frame_{env_t}.png')
         plt.pause(0.01)
         state = next_state
