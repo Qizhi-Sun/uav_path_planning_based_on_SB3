@@ -10,6 +10,9 @@ from building_data import *
 from UAV_and_Final_data import *
 import matplotlib.style as mplstyle
 
+'''
+跟随者1的训练环境
+'''
 
 mplstyle.use('fast')
 x_goal = match_pairs_WH[0][2][0]
@@ -134,16 +137,16 @@ class UAVEnv_F(gym.Env):
         '''
         r_team_keep
         '''
-        x_diff_f_to_l = self.state_leader[0]- 2 - self.state[0]
-        y_diff_f_to_l = self.state_leader[1]- 2 - self.state[1]
+        x_diff_f_to_l = self.state_leader[0]-2 - self.state[0]
+        y_diff_f_to_l = self.state_leader[1]-2 - self.state[1]
         z_diff_f_to_l = self.state_leader[2] - self.state[2]
-        self.state[3] = self.state_leader[0]
-        self.state[4] = self.state_leader[1]
+        self.state[3] = self.state_leader[0]-2
+        self.state[4] = self.state_leader[1]-2
         self.state[5] = self.state_leader[2]
 
         distance_to_leader = math.hypot(x_diff_f_to_l, y_diff_f_to_l, z_diff_f_to_l)
 
-        if distance_to_leader > 0.5:
+        if distance_to_leader > 0:
             r_team_keep = -1 * distance_to_leader
         else:
             r_team_keep = 0.5
@@ -156,7 +159,7 @@ class UAVEnv_F(gym.Env):
         y_speed_diff = leader_speed[1] - actions[1]
         z_speed_diff = leader_speed[2] - actions[2]
         speed_diff = math.hypot(x_speed_diff, y_speed_diff, z_speed_diff)
-        if speed_diff > 0.2:
+        if speed_diff > 0.1:
             r_speed_same = -1 * speed_diff
         else:
             r_speed_same = 0.5
@@ -171,7 +174,7 @@ class UAVEnv_F(gym.Env):
         return np.array(self.state, dtype=np.float32), float(self.r), self.done, self.truncated, self.info
 
     def reset(self, seed = None):
-        self.state =[1.6, 1.6, 1.6, 2, 2, 2, 0]
+        self.state =[0, 0, 2, 0, 0, 2, 0]
         self.r = 0
         self.done = False
         self.truncated = False

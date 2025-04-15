@@ -4,6 +4,10 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.evaluation import evaluate_policy
 from UAV_Env import *
 
+'''
+用来单独测试领导者的避障与寻路，方便调试
+'''
+
 # 创建环境名
 Map_name = 'Map1'
 # 初始化MAP模块
@@ -18,18 +22,8 @@ train_env = make_vec_env(lambda: env, n_envs=1)
 
 # 加载预训练模型
 model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_14.zip', env=train_env)
-# 创建一个新的模型
-model_origin = SAC("MlpPolicy", train_env, verbose=0)
 
-# state = train_env.reset()
-# for i in range(100):
-#     action = model.predict(state)[0]
-#     next_state, r, done, truncated, info = env.step(action)
-#     print(state, action, r)
-#     state = next_state
-#
-#     if done:
-#         break
+
 render = Render(uav_num, env.state, buildings, map_w, map_h, map_z, uav_r, env.position_pool, match_pairs)
 for i in range(100):
     state, _ = env.reset()

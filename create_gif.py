@@ -2,6 +2,9 @@ import imageio
 import os
 import re
 
+'''
+用来把fig文件夹中的图像转化为gif,方便展示，哭了，我怎么这么贴心
+'''
 def create_gif(image_folder, output_gif, fps=10):
     """
     将文件夹中的图像文件转换为 GIF 动画
@@ -26,5 +29,5 @@ def create_gif(image_folder, output_gif, fps=10):
 
 # 使用示例
 image_folder = r'E:\RL\stable-baselin3\fig'  # 替换为你的图像文件夹路径
-output_gif = 'output.gif'  # 替换为你想要的输出 GIF 文件名
+output_gif = 'output1.gif'  # 替换为你想要的输出 GIF 文件名
 create_gif(image_folder, output_gif, fps=10)

@@ -5,7 +5,9 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from UAV_Env_follower import *
 from UAV_Env import UAVEnv
 
-
+'''
+用来测试领导者与跟随者1的情况，方便调试
+'''
 # 创建环境名
 Map_name = 'Map1'
 # 初始化MAP模块
@@ -21,7 +23,7 @@ env = UAVEnv_F(uav_num, map_w, map_h, map_z, Init_state, buildings, model)
 train_env = make_vec_env(lambda: env, n_envs=1)
 
 # 加载预训练模型
-model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_follower_5.zip', env=train_env)
+model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_follower_(4,0).zip', env=train_env)
 # 创建一个新的模型
 # model_origin = SAC("MlpPolicy", train_env, verbose=0)
 

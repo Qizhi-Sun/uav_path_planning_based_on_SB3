@@ -25,11 +25,23 @@ train_env_1 = make_vec_env(lambda : env, n_envs=1)
 '''
 训练跟随者
 '''
+# model_pre_trained_leader = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_14.zip', env=train_env_1)
+# # 初始化Env模块
+# env = UAVEnv_F(uav_num, map_w, map_h, map_z, Init_state, buildings, model_pre_trained_leader)
+# check_env(env, warn=True)
+# train_env = make_vec_env(lambda : env, n_envs=1)
+# model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_4.zip", env=train_env, verbose=1)
+# model.learn(total_timesteps=80000, progress_bar=True)
+# model.save('E:\RL\stable-baselin3\models\save_3d_follower_5')
+
+'''
+训练跟随者2
+'''
 model_pre_trained_leader = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_14.zip', env=train_env_1)
 # 初始化Env模块
 env = UAVEnv_F(uav_num, map_w, map_h, map_z, Init_state, buildings, model_pre_trained_leader)
 check_env(env, warn=True)
 train_env = make_vec_env(lambda : env, n_envs=1)
-model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_4.zip", env=train_env, verbose=1)
-model.learn(total_timesteps=80000, progress_bar=True)
-model.save('E:\RL\stable-baselin3\models\save_3d_follower_5')
+model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_(0,0).zip", env=train_env, verbose=1)
+model.learn(total_timesteps=100000, progress_bar=True)
+model.save('E:\RL\stable-baselin3\models\save_3d_follower_(0,0)1')

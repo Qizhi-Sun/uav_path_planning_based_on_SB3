@@ -1,0 +1,36 @@
+import imageio
+import os
+import re
+
+'''
+用来把fig文件夹中的图像转化为mp4,方便展示，哭了，我怎么这么贴心
+'''
+def create_mp4(image_folder, output_mp4, fps=10):
+    """
+    将文件夹中的图像文件转换为 MP4 视频
+
+    :param image_folder: 包含图像文件的文件夹路径
+    :param output_mp4: 输出的 MP4 文件路径
+    :param fps: 每秒帧数（帧率）
+    """
+    # 获取文件夹中所有图像文件并排序
+    images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
+    images.sort(key=lambda x: int(re.search(r'\d+', x).group()))
+
+    # 读取图像文件并添加到帧列表中
+    frames = []
+    for image in images:
+        image_path = os.path.join(image_folder, image)
+        frames.append(imageio.imread(image_path))
+
+    # 将帧列表保存为 MP4 文件
+    writer = imageio.get_writer(output_mp4, fps=fps)
+    for frame in frames:
+        writer.append_data(frame)
+    writer.close()
+
+
+# 使用示例
+image_folder = r'E:\RL\stable-baselin3\fig'  # 替换为你的图像文件夹路径
+output_mp4 = 'output1.mp4'  # 替换为你想要的输出 MP4 文件名
+create_mp4(image_folder, output_mp4, fps=10)

@@ -10,6 +10,9 @@ from building_data import *
 from UAV_and_Final_data import *
 import matplotlib.style as mplstyle
 
+'''
+领导者的训练环境
+'''
 
 mplstyle.use('fast')
 x_goal = match_pairs_WH[0][2][0]

@@ -18,8 +18,14 @@ python main.py
 ```
 **执行测试**
 ````
-python test_block_follower.py
+python test_block_followers.py
 ````
+
+***参考项目***
+
+本项目的训练环境（包括那些奇怪的，点开就卡死的数据组织形式）来自项目：
+
+<https://github.com/Lyytimmy/UAVGym.git>
 
 ***后续工作***
 - 借助pygame实现更高性能的渲染
