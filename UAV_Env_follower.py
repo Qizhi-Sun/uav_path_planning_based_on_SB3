@@ -11,7 +11,9 @@ from UAV_and_Final_data import *
 import matplotlib.style as mplstyle
 
 '''
-跟随者1的训练环境
+跟随者1 (0 0 2) 的训练环境
+跟随者2 (4 0 2) 的训练环境
+针对不同的跟随者，只需要修改r_team_keep的虚拟编队值
 '''
 
 mplstyle.use('fast')
@@ -32,7 +34,7 @@ class UAVEnv_F(gym.Env):
         '''
         self.position_pool = [[] for _ in range(2)]
         self.state = Init_state
-        self.state_leader = [2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
+        self.state_leader = [2, 2, 2, 0, 0, 0, 2-x_goal, 2-y_goal, 2-z_goal, 0]
         self.buildings = buildings
         self.info = {}
         self.r = [0 for _ in range(self.uav_num)]
@@ -41,11 +43,11 @@ class UAVEnv_F(gym.Env):
         self.truncated = False
         self.env_t = 0
         # 定义无人机的动作空间和观测空间
-        self.action_space = spaces.Box(low=np.array([-0.2, -0.2, -0.2] * self.uav_num),
-                                       high=np.array([0.2, 0.2, 0.2] * self.uav_num), dtype=np.float32)
-        # 状态包括x y z vx vy vz xg yg zg o
-        self.observation_space = spaces.Box(low=np.array([0, 0, 0, -self.map_w, -self.map_h, -self.map_z, 0] * self.uav_num),
-                                            high=np.array([self.map_w, self.map_h, self.map_z, self.map_w, self.map_h, self.map_z, 1] *
+        self.action_space = spaces.Box(low=np.array([-0.03, -0.03, -0.03] * self.uav_num),
+                                       high=np.array([0.03, 0.03, 0.03] * self.uav_num), dtype=np.float32)
+        # 状态包括x y z vx vy vz xl yl zl
+        self.observation_space = spaces.Box(low=np.array([0, 0, 0, -0.2, -0.2, -0.2, -self.map_w, -self.map_h, -self.map_z] * self.uav_num),
+                                            high=np.array([self.map_w, self.map_h, self.map_z, 0.2, 0.2, 0.2, self.map_w, self.map_h, self.map_z] *
                                                           self.uav_num), dtype=np.float32)
 
     # 记录无人机的飞行轨迹函数
@@ -62,9 +64,14 @@ class UAVEnv_F(gym.Env):
     def step(self, actions):
         self.env_t += 1
         self.state[:3] += actions[:3]  # update follower x, y, z
-        leader_speed, _ = self.model.predict(self.state_leader) # 得到领导者的速度
-        self.state_leader[:3] += leader_speed   #更新领导者 x y z
-
+        acc, _ = self.model.predict(self.state_leader) # 得到领导者的加速度
+        last_speed_leader = self.state_leader[3:6]
+        self.state_leader[3:6] +=acc[:3]
+        self.state_leader[3:6] = np.clip(self.state_leader[3:6], -0.2, 0.2)
+        # 更新领导者 x, y, z
+        for i in range(3):
+            dis = (last_speed_leader[i] + self.state_leader[i+3]) / 2
+            self.state_leader[i] += dis
         '''
         边界
         '''
@@ -126,9 +133,9 @@ class UAVEnv_F(gym.Env):
         x_diff = self.state_leader[0]-x_goal
         y_diff = self.state_leader[1]-y_goal
         z_diff = self.state_leader[2]-z_goal
-        self.state_leader[3] = x_diff
-        self.state_leader[4] = y_diff
-        self.state_leader[5] = z_diff
+        self.state_leader[6] = x_diff
+        self.state_leader[7] = y_diff
+        self.state_leader[8] = z_diff
         distance_to_goal = math.hypot(x_diff, y_diff, z_diff)
         if distance_to_goal <= 2:
             self.done = True
@@ -136,11 +143,12 @@ class UAVEnv_F(gym.Env):
 
         '''
         r_team_keep
+        训练不同得跟随者时，更改此处的虚拟编队差即可
         '''
-        x_diff_f_to_l = self.state_leader[0]-2 - self.state[0]
+        x_diff_f_to_l = self.state_leader[0]+2 - self.state[0]
         y_diff_f_to_l = self.state_leader[1]-2 - self.state[1]
         z_diff_f_to_l = self.state_leader[2] - self.state[2]
-        self.state[3] = self.state_leader[0]-2
+        self.state[3] = self.state_leader[0]+2
         self.state[4] = self.state_leader[1]-2
         self.state[5] = self.state_leader[2]
 
@@ -155,6 +163,7 @@ class UAVEnv_F(gym.Env):
         '''
         r_speed_same
         '''
+        leader_speed = self.state_leader[3:6]
         x_speed_diff = leader_speed[0] - actions[0]
         y_speed_diff = leader_speed[1] - actions[1]
         z_speed_diff = leader_speed[2] - actions[2]
@@ -174,13 +183,12 @@ class UAVEnv_F(gym.Env):
         return np.array(self.state, dtype=np.float32), float(self.r), self.done, self.truncated, self.info
 
     def reset(self, seed = None):
-        self.state =[0, 0, 2, 0, 0, 2, 0]
+        self.state =[4, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.r = 0
         self.done = False
         self.truncated = False
         self.env_t = 0
-        self.state_leader = [2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
-        self.state_follower2 = [0, 0, 2, 0, 0, 2, 0]
+        self.state_leader = [2, 2, 2, 0, 0, 0, 2-x_goal, 2-y_goal, 2-z_goal, 0]
         return np.array(self.state, dtype=np.float32), self.info
 
     def timestamp(self):

@@ -11,7 +11,7 @@ from UAV_and_Final_data import *
 import matplotlib.style as mplstyle
 
 '''
-跟随者2的训练环境
+跟随者12 的测试环境
 '''
 mplstyle.use('fast')
 x_goal = match_pairs_WH[0][2][0]
@@ -31,7 +31,7 @@ class UAVEnv_F2(gym.Env):
         '''
         self.position_pool = [[] for _ in range(3)]
         self.state = [0, 0, 2, 2, 2, 2, 0]
-        self.state_leader = [2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
+        self.state_leader = [2, 2, 2, 0, 0, 0, 2-x_goal, 2-y_goal, 2-z_goal, 0]
         self.state_follower2 = [4, 0, 2, 2, 2, 2, 0]
         self.buildings = buildings
         self.info = {}
@@ -65,10 +65,21 @@ class UAVEnv_F2(gym.Env):
     # 无人机的动作更新函数
     def step(self, actions):
         self.env_t += 1
-        self.state[:3] += actions[:3]  # update follower x, y, z
-        leader_speed, _ = self.model_leader.predict(self.state_leader) # 得到领导者的速度
-        self.state_leader[:3] += leader_speed   #更新领导者 x y z
-        follower_speed, _ = self.model_follower.predict(self.state_follower2) # 得到领导者的速度
+        self.state[:3] += actions[:3]  # 更新跟随者 x, y, z
+        acc, _ = self.model_leader.predict(self.state_leader) # 得到领导者的加速度
+        # 用于加噪声！！！！！！！正常性能测试记得注释掉！！！！！！！！！
+        acc += np.random.normal(loc=0, scale=0.01, size=len(acc))
+        last_speed_leader = self.state_leader[3:6]
+        self.state_leader[3:6] +=acc[:3]
+        self.state_leader[3:6] = np.clip(self.state_leader[3:6], -0.2, 0.2)
+        # 更新领导者 x, y, z
+        for i in range(3):
+            dis = (last_speed_leader[i] + self.state_leader[i+3]) / 2
+            self.state_leader[i] += dis
+
+        follower_speed, _ = self.model_follower.predict(self.state_follower2) # 得跟随者2的速度
+        # 用于加噪声！！！！！！！正常性能测试记得注释掉！！！！！！！！！
+        follower_speed += np.random.normal(loc=0, scale=0.01, size=len(follower_speed))
         self.state_follower2[:3] += follower_speed   #更新跟随者2 x y z
 
         '''
@@ -94,7 +105,7 @@ class UAVEnv_F2(gym.Env):
         distance_to_obstacle_follower = math.hypot(pos_x_diff_follower, pos_y_diff_follower) # 距离障碍物中心的距离
 
         if distance_to_obstacle <= 10:
-            self.state_leader[6] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
+            self.state_leader[9] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
         grid_x = int(self.state_leader[0])
         grid_y = int(self.state_leader[1])
         if self.buildings[grid_x * 50 + grid_y][4] == 2:
@@ -104,7 +115,7 @@ class UAVEnv_F2(gym.Env):
         else:
             height = 0
         if self.state_leader[2] <= height:
-            self.state_leader[6] = 1
+            self.state_leader[9] = 1
             self.done = True
             print("!!!!!!!!!!!!!!! leader down !!!!!!!!!!!!!!!!!")
 
@@ -132,13 +143,13 @@ class UAVEnv_F2(gym.Env):
         x_diff = self.state_leader[0]-x_goal
         y_diff = self.state_leader[1]-y_goal
         z_diff = self.state_leader[2]-z_goal
-        self.state_leader[3] = x_diff
-        self.state_leader[4] = y_diff
-        self.state_leader[5] = z_diff
+        self.state_leader[6] = x_diff
+        self.state_leader[7] = y_diff
+        self.state_leader[8] = z_diff
         distance_to_goal = math.hypot(x_diff, y_diff, z_diff)
         if distance_to_goal <= 2:
             self.done = True
-            print("!!!!!!!!!!!!!!! UAV HAVE BEEN FINAL !!!!!!!!!!!!!!!")
+
 
         '''
         r_team_keep
@@ -146,10 +157,10 @@ class UAVEnv_F2(gym.Env):
         x_diff_f_to_l = self.state_leader[0]- 2 - self.state[0]
         y_diff_f_to_l = self.state_leader[1]- 2 - self.state[1]
         z_diff_f_to_l = self.state_leader[2] - self.state[2]
-        self.state[3] = self.state_leader[0]-1.5
+        self.state[3] = self.state_leader[0]-2
         self.state[4] = self.state_leader[1]-2
         self.state[5] = self.state_leader[2]
-        self.state_follower2[3] = self.state_leader[0]+1.5
+        self.state_follower2[3] = self.state_leader[0]+2
         self.state_follower2[4] = self.state_leader[1]-2
         self.state_follower2[5] = self.state_leader[2]
 
@@ -164,6 +175,7 @@ class UAVEnv_F2(gym.Env):
         '''
         r_speed_same
         '''
+        leader_speed = self.state_leader[3:6]
         x_speed_diff = leader_speed[0] - actions[0]
         y_speed_diff = leader_speed[1] - actions[1]
         z_speed_diff = leader_speed[2] - actions[2]
@@ -183,13 +195,13 @@ class UAVEnv_F2(gym.Env):
         return np.array(self.state, dtype=np.float32), float(self.r), self.done, self.truncated, self.info
 
     def reset(self, seed = None):
-        self.state =[0.5, 0.5, 2, 0.5, 0.5, 2, 0]
+        self.state =[1, 1, 2, 0, 0, 0, 0]
         self.r = 0
         self.done = False
         self.truncated = False
         self.env_t = 0
-        self.state_leader = [2, 2, 2, 2-x_goal, 2-y_goal, 2-z_goal, 0]
-        self.state_follower2 = [3.5, 0.5, 2, 3.5, 0.5, 2, 0]
+        self.state_leader = [4, 4, 2, 0, 0, 0, 2-x_goal, 2-y_goal, 2-z_goal, 0]
+        self.state_follower2 = [4, 0, 2, 0, 0, 0, 0]
         return np.array(self.state, dtype=np.float32), self.info
 
     def timestamp(self):
@@ -213,7 +225,7 @@ class Render:
         # 创建画布
         self.fig = plt.figure(figsize=(self.map_w, self.map_h))  # 设置画布大小
         self.ax = self.fig.add_subplot(111, projection='3d')  # 创建三维坐标系
-        self.ax.view_init(elev=90, azim=0)
+        # self.ax.view_init(elev=90, azim=0)
         # 绘制目标点
         for index, pair in enumerate(match_pairs):
             aim = pair[2]
@@ -230,7 +242,7 @@ class Render:
                 continue
 
             if building_type == 1:
-                height = 4
+                height = 5
                 color = 'lightgreen'
             elif building_type == 2:
                 height = 10
@@ -277,7 +289,7 @@ class Render:
             if i == 0:
                 l = self.ax.plot(x_traj[-10:], y_traj[-10:], z_traj[-10:], color='gray', alpha=0.7, linewidth=2.0)
                 self.line.append(l)
-                head = self.ax.scatter(x_traj[-1], y_traj[-1], z_traj[-1], color='gray', s=30)
+                head = self.ax.scatter(x_traj[-1], y_traj[-1], z_traj[-1], color='blue', s=30)
                 self.Head.append(head)
             if i == 1:
                 l = self.ax.plot(x_traj[-10:], y_traj[-10:], z_traj[-10:], color='deepskyblue', alpha=0.7, linewidth=2.0)
@@ -332,6 +344,32 @@ class SetConfig:
                 for j in range(33,37):
                     idx = j * 50
                     self.buildings[i+idx][4] = 2
+
+            for i in range(13,17):
+                for j in range(23,27):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 1
+            for i in range(13,17):
+                for j in range(33,37):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 1
+            for i in range(23,27):
+                for j in range(33,37):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 1
+
+            for i in range(23,27):
+                for j in range(13,17):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 1
+            for i in range(33,37):
+                for j in range(13,17):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 1
+            for i in range(33,37):
+                for j in range(23,27):
+                    idx = j * 50
+                    self.buildings[i+idx][4] = 1
             # for i in range(30,50):
             #     for j in range(30,50):
             #         idx = j * 50

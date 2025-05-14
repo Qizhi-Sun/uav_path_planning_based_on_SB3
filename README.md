@@ -24,7 +24,7 @@ python test_block_followers.py
 
 ### 参考项目
 
-本项目的训练环境（包括那些奇怪的，点开就卡死的数据组织形式）来自项目：
+本项目的训练环境（包括那些奇怪的，点开就卡死的数据组织形式）参考项目：
 
 <https://github.com/Lyytimmy/UAVGym.git>
 
