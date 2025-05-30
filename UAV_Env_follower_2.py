@@ -10,6 +10,8 @@ from building_data import *
 from UAV_and_Final_data import *
 import matplotlib.style as mplstyle
 
+scale = 0.00
+
 '''
 跟随者12 的测试环境
 '''
@@ -30,9 +32,9 @@ class UAVEnv_F2(gym.Env):
         这里的uav_num也手动定义了
         '''
         self.position_pool = [[] for _ in range(3)]
-        self.state = [0, 0, 2, 2, 2, 2, 0]
+        self.state = [0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.state_leader = [2, 2, 2, 0, 0, 0, 2-x_goal, 2-y_goal, 2-z_goal, 0]
-        self.state_follower2 = [4, 0, 2, 2, 2, 2, 0]
+        self.state_follower2 = [4, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.buildings = buildings
         self.info = {}
         self.r = [0 for _ in range(self.uav_num)]
@@ -42,11 +44,11 @@ class UAVEnv_F2(gym.Env):
         self.truncated = False
         self.env_t = 0
         # 定义无人机的动作空间和观测空间
-        self.action_space = spaces.Box(low=np.array([-0.2, -0.2, -0.2] * self.uav_num),
-                                       high=np.array([0.2, 0.2, 0.2] * self.uav_num), dtype=np.float32)
-        # 状态包括x y z vx vy vz xg yg zg o
-        self.observation_space = spaces.Box(low=np.array([0, 0, 0, -self.map_w, -self.map_h, -self.map_z, 0] * self.uav_num),
-                                            high=np.array([self.map_w, self.map_h, self.map_z, self.map_w, self.map_h, self.map_z, 1] *
+        self.action_space = spaces.Box(low=np.array([-0.03, -0.03, -0.03] * self.uav_num),
+                                       high=np.array([0.03, 0.03, 0.03] * self.uav_num), dtype=np.float32)
+        # 状态包括x y z vx vy vz xl yl zl
+        self.observation_space = spaces.Box(low=np.array([0, 0, 0, -0.2, -0.2, -0.2, -self.map_w, -self.map_h, -self.map_z, -0.4, -0.4, -0.4] * self.uav_num),
+                                            high=np.array([self.map_w, self.map_h, self.map_z, 0.2, 0.2, 0.2, self.map_w, self.map_h, self.map_z, 0.4, 0.4, 0.4] *
                                                           self.uav_num), dtype=np.float32)
 
     # 记录无人机的飞行轨迹函数
@@ -65,34 +67,64 @@ class UAVEnv_F2(gym.Env):
     # 无人机的动作更新函数
     def step(self, actions):
         self.env_t += 1
-        self.state[:3] += actions[:3]  # 更新跟随者 x, y, z
-        acc, _ = self.model_leader.predict(self.state_leader) # 得到领导者的加速度
+
+        # follower 速度更新
+        FollowerLastSpeed1 = self.state[3:6]
+        # actions[:2] = np.clip(actions[:2],-0.015,0.015)
+        # actions[2] = np.clip(actions[2],-0.006,0.006)
+        self.state[3:6] += actions[:3]
+        # self.state[3:5] = np.clip(self.state[3:5], -0.2, 0.2)
+        # self.state[5] = np.clip(self.state[5], -0.06, 0.06)
+        self.state[3:6] = np.clip(self.state[3:6], -0.2, 0.2)
+
+        # follower2 速度更新
+        FollowerAccelerate2, _ = self.model_follower.predict(self.state_follower2)
+        # FollowerAccelerate2[:2] = np.clip(FollowerAccelerate2[:2],-0.015,0.015)
+        # FollowerAccelerate2[2] = np.clip(FollowerAccelerate2[2],-0.006,0.006)
         # 用于加噪声！！！！！！！正常性能测试记得注释掉！！！！！！！！！
-        acc += np.random.normal(loc=0, scale=0.01, size=len(acc))
-        last_speed_leader = self.state_leader[3:6]
-        self.state_leader[3:6] +=acc[:3]
-        self.state_leader[3:6] = np.clip(self.state_leader[3:6], -0.2, 0.2)
+        FollowerAccelerate2 += np.random.normal(loc=0, scale=scale, size=len(FollowerAccelerate2))
+        FollowerLastSpeed2 = self.state_follower2[3:6]
+        self.state_follower2[3:6] += FollowerAccelerate2[:3]
+        # self.state_follower2[3:5] = np.clip(self.state_follower2[3:5], -0.2, 0.2)
+        # self.state_follower2[5] = np.clip(self.state_follower2[5], -0.06, 0.06)
+        self.state_follower2[3:6] = np.clip(self.state_follower2[3:6], -0.2, 0.2)
+
+        # leader 速度更新
+        LeaderAccelerate, _ = self.model_leader.predict(self.state_leader)
+        # LeaderAccelerate[:2] = np.clip(LeaderAccelerate[:2],-0.015,0.015)
+        # LeaderAccelerate[2] = np.clip(LeaderAccelerate[2],-0.006,0.006)
+        # 用于加噪声！！！！！！！正常性能测试记得注释掉！！！！！！！！！
+        LeaderAccelerate += np.random.normal(loc=0, scale=scale, size=len(LeaderAccelerate))
+        LeaderLastSpeed = self.state_leader[3:6]
+        self.state_leader[3:6] +=LeaderAccelerate[:3]
+        # self.state_leader[3:5] = np.clip(self.state_leader[3:5], -0.2, 0.2)
+        # self.state_leader[5] = np.clip(self.state_leader[5], -0.06, 0.06)
+        self.state_leader[3:6] = np.clip(self.state_leader[3:6], -0.2 ,0.2)
+
+
         # 更新领导者 x, y, z
         for i in range(3):
-            dis = (last_speed_leader[i] + self.state_leader[i+3]) / 2
+            dis = (LeaderLastSpeed[i] + self.state_leader[i+3]) / 2
             self.state_leader[i] += dis
 
-        follower_speed, _ = self.model_follower.predict(self.state_follower2) # 得跟随者2的速度
-        # 用于加噪声！！！！！！！正常性能测试记得注释掉！！！！！！！！！
-        follower_speed += np.random.normal(loc=0, scale=0.01, size=len(follower_speed))
-        self.state_follower2[:3] += follower_speed   #更新跟随者2 x y z
+        # 更新跟随者1 x, y, z
+        for i in range(3):
+            dis = (FollowerLastSpeed1[i] + self.state[i+3]) / 2
+            self.state[i] += dis
+
+        # 更新跟随者2 x, y, z
+        for i in range(3):
+            dis = (FollowerLastSpeed2[i] + self.state_follower2[i+3]) / 2
+            self.state_follower2[i] += dis
 
         '''
         边界
         '''
-        if self.state[0]<1 or self.state[0]>49 or self.state[1]<1 or self.state[1]>49 or self.state[2]<1 or self.state[2]>9:
-            r_edge = -5
-        elif self.state[0]<=0 or self.state[0]>=50 or self.state[1]<=0 or self.state[1]>=50 or self.state[2]<=0 or self.state[2]>=10:
-            r_edge = -10
-        else:
-            r_edge = 0
         self.state[:2] = np.clip(self.state[:2], 0, 49.9)
-        self.state[2] = np.clip(self.state[2], 0, 10)
+        self.state[2] = np.clip(self.state[2], 0, 9.9)
+
+        self.state_leader[:2] = np.clip(self.state_leader[:2], 0, 49.9)
+        self.state_leader[2] = np.clip(self.state_leader[2], 0, 9.9)
 
         '''
         机毁人亡
@@ -102,9 +134,8 @@ class UAVEnv_F2(gym.Env):
         pos_x_diff_follower = self.state[0] - 25
         pos_y_diff_follower = self.state[1] - 25
         distance_to_obstacle = math.hypot(pos_x_diff_leader, pos_y_diff_leader) # 距离障碍物中心的距离
-        distance_to_obstacle_follower = math.hypot(pos_x_diff_follower, pos_y_diff_follower) # 距离障碍物中心的距离
 
-        if distance_to_obstacle <= 10:
+        if distance_to_obstacle <= 8:
             self.state_leader[9] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
         grid_x = int(self.state_leader[0])
         grid_y = int(self.state_leader[1])
@@ -117,25 +148,9 @@ class UAVEnv_F2(gym.Env):
         if self.state_leader[2] <= height:
             self.state_leader[9] = 1
             self.done = True
+            self.info = 0
             print("!!!!!!!!!!!!!!! leader down !!!!!!!!!!!!!!!!!")
 
-        if distance_to_obstacle_follower <= 10:
-            self.state[6] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
-        grid_x_f = int(self.state[0])
-        grid_y_f = int(self.state[1])
-        if self.buildings[grid_x_f * 50 + grid_y_f][4] == 2:
-            height = 10
-        elif self.buildings[grid_x_f * 50 + grid_y_f][4] == 3:
-            height = 10
-        else:
-            height = 0
-        if self.state[2] <= height:
-            self.state[6] = 1
-            r_obstacle = 0
-            # self.done = True
-            # print("!!!!!!!!!!!!!!! follower down !!!!!!!!!!!!!!!!!")
-        else:
-            r_obstacle = 0
 
         '''
         抵达终点
@@ -150,40 +165,42 @@ class UAVEnv_F2(gym.Env):
         if distance_to_goal <= 2:
             self.done = True
 
-
         '''
         r_team_keep
         '''
-        x_diff_f_to_l = self.state_leader[0]- 2 - self.state[0]
-        y_diff_f_to_l = self.state_leader[1]- 2 - self.state[1]
-        z_diff_f_to_l = self.state_leader[2] - self.state[2]
-        self.state[3] = self.state_leader[0]-2
-        self.state[4] = self.state_leader[1]-2
-        self.state[5] = self.state_leader[2]
-        self.state_follower2[3] = self.state_leader[0]+2
-        self.state_follower2[4] = self.state_leader[1]-2
-        self.state_follower2[5] = self.state_leader[2]
-
-        distance_to_leader = math.hypot(x_diff_f_to_l, y_diff_f_to_l, z_diff_f_to_l)
-
-        if distance_to_leader > 0.4:
-            r_team_keep = -1 * distance_to_leader
+        if self.env_t <= 60:
+            error = 2
         else:
-            r_team_keep = 0.5
-
+            error = 0
+        x_diff_f1_to_l = self.state_leader[0] - 2 - self.state[0]
+        y_diff_f1_to_l = self.state_leader[1] - error - self.state[1]
+        z_diff_f1_to_l = self.state_leader[2] - self.state[2]
+        x_diff_f2_to_l = self.state_leader[0] + 2 - self.state_follower2[0]
+        y_diff_f2_to_l = self.state_leader[1] - error - self.state_follower2[1]
+        z_diff_f2_to_l = self.state_leader[2] - self.state_follower2[2]
+        self.state[6] = x_diff_f1_to_l
+        self.state[7] = y_diff_f1_to_l
+        self.state[8] = z_diff_f1_to_l
+        self.state_follower2[6] = x_diff_f2_to_l
+        self.state_follower2[7] = y_diff_f2_to_l
+        self.state_follower2[8] = z_diff_f2_to_l
 
         '''
         r_speed_same
         '''
         leader_speed = self.state_leader[3:6]
-        x_speed_diff = leader_speed[0] - actions[0]
-        y_speed_diff = leader_speed[1] - actions[1]
-        z_speed_diff = leader_speed[2] - actions[2]
-        speed_diff = math.hypot(x_speed_diff, y_speed_diff, z_speed_diff)
-        if speed_diff > 0.2:
-            r_speed_same = -1 * speed_diff
-        else:
-            r_speed_same = 0.5
+        x_speed_diff1 = leader_speed[0] - self.state[3]
+        y_speed_diff1 = leader_speed[1] - self.state[4]
+        z_speed_diff1 = leader_speed[2] - self.state[5]
+        x_speed_diff2 = leader_speed[0] - self.state_follower2[3]
+        y_speed_diff2 = leader_speed[1] - self.state_follower2[4]
+        z_speed_diff2 = leader_speed[2] - self.state_follower2[5]
+        self.state[9] = x_speed_diff1
+        self.state[10] = y_speed_diff1
+        self.state[11] = z_speed_diff1
+        self.state_follower2[9] = x_speed_diff2
+        self.state_follower2[10] = y_speed_diff2
+        self.state_follower2[11] = z_speed_diff2
 
         '''
         截断条件
@@ -191,17 +208,17 @@ class UAVEnv_F2(gym.Env):
         if self.env_t >= 500:
             self.truncated = True
 
-        self.r = r_team_keep + r_speed_same + r_edge + r_obstacle
         return np.array(self.state, dtype=np.float32), float(self.r), self.done, self.truncated, self.info
 
     def reset(self, seed = None):
-        self.state =[1, 1, 2, 0, 0, 0, 0]
+        self.state =[0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.r = 0
         self.done = False
         self.truncated = False
         self.env_t = 0
-        self.state_leader = [4, 4, 2, 0, 0, 0, 2-x_goal, 2-y_goal, 2-z_goal, 0]
-        self.state_follower2 = [4, 0, 2, 0, 0, 0, 0]
+        self.info = 1
+        self.state_leader = [2, 2, 2, 0, 0, 0, 2-x_goal, 2-y_goal, 2-z_goal, 0]
+        self.state_follower2 = [4, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         return np.array(self.state, dtype=np.float32), self.info
 
     def timestamp(self):
@@ -225,7 +242,7 @@ class Render:
         # 创建画布
         self.fig = plt.figure(figsize=(self.map_w, self.map_h))  # 设置画布大小
         self.ax = self.fig.add_subplot(111, projection='3d')  # 创建三维坐标系
-        # self.ax.view_init(elev=90, azim=0)
+        self.ax.view_init(elev=90, azim=0)
         # 绘制目标点
         for index, pair in enumerate(match_pairs):
             aim = pair[2]
@@ -242,13 +259,13 @@ class Render:
                 continue
 
             if building_type == 1:
-                height = 5
+                height = 3
                 color = 'lightgreen'
             elif building_type == 2:
                 height = 10
                 color = 'lightblue'
             elif building_type == 3:
-                height = 10
+                height = 6
                 color = 'lightblue'
 
             vertices = [
@@ -352,7 +369,7 @@ class SetConfig:
             for i in range(13,17):
                 for j in range(33,37):
                     idx = j * 50
-                    self.buildings[i+idx][4] = 1
+                    self.buildings[i+idx][4] = 2
             for i in range(23,27):
                 for j in range(33,37):
                     idx = j * 50
@@ -365,7 +382,7 @@ class SetConfig:
             for i in range(33,37):
                 for j in range(13,17):
                     idx = j * 50
-                    self.buildings[i+idx][4] = 1
+                    self.buildings[i+idx][4] = 2
             for i in range(33,37):
                 for j in range(23,27):
                     idx = j * 50
@@ -381,7 +398,7 @@ class SetConfig:
         return self.uav_num, self.map_w, self.map_h, self.map_z, self.buildings_location, self.buildings, self.match_pairs, self.uav_r, self.Init_state
 
 
-# 无人机的动作控制器
+# 无人机的动作控制器 暂时没用到 但是后续研究能继续用 方便拓展
 class MvController:
     def __init__(self, map_w, map_h, map_z, buildings_location):
         self.map_w = map_w

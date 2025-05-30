@@ -42,22 +42,22 @@ check_env(env, warn=True)
 env = Monitor(env)
 train_env = make_vec_env(lambda : env, n_envs=1)
 # 新建一个SAC模型
-model = SAC(policy="MlpPolicy", env=train_env, verbose=1)
-# model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_(4,0)1.zip", env=train_env, verbose=1)
-model.learn(total_timesteps=800000, progress_bar=True)
-model.save('E:\RL\stable-baselin3\models\save_3d_follower_(4,0)_12_states')
+# model = SAC(policy="MlpPolicy", env=train_env, verbose=1)
+model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_(4,0)_12_states.zip", env=train_env, verbose=1)
+model.learn(total_timesteps=150000, progress_bar=True)
+model.save('E:\RL\stable-baselin3\models\save_3d_follower_(4,0)1_12_states')
 
 '''
 训练跟随者2
 '''
-# model_pre_trained_leader = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_19.zip', env=train_env_1)
+# model_pre_trained_leader = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_22.zip', env=train_env_1)
 # # 初始化Env模块
 # env = UAVEnv_F(uav_num, map_w, map_h, map_z, Init_state, buildings, model_pre_trained_leader)
 # check_env(env, warn=True)
 # train_env = make_vec_env(lambda : env, n_envs=1)
-# model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_(4,0).zip", env=train_env, verbose=1)
+# model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_(4,0)_12_states.zip", env=train_env, verbose=1)
 # model.learn(total_timesteps=100000, progress_bar=True)
-# model.save('E:\RL\stable-baselin3\models\save_3d_follower_(4,0)1')
+# model.save('E:\RL\stable-baselin3\models\save_3d_follower_(0,0)_12_states')
 
 '''
 记录存储reward

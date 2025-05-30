@@ -19,7 +19,7 @@ env = UAVEnv(uav_num, map_w, map_h, map_z, Init_state, buildings)
 train_env = make_vec_env(lambda: env, n_envs=1)
 
 # 加载预训练模型
-model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_21.zip', env=train_env)
+model_pre_trained = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_22.zip', env=train_env)
 
 
 render = Render(uav_num, env.state, buildings, map_w, map_h, map_z, uav_r, env.position_pool, match_pairs)

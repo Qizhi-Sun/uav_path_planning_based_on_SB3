@@ -13,7 +13,7 @@ import matplotlib.style as mplstyle
 '''
 跟随者1 (0 0 2) 的训练环境
 跟随者2 (4 0 2) 的训练环境
-针对不同的跟随者，只需要修改r_team_keep的虚拟编队值
+针对不同的跟随者，只需要修改r_team_keep的虚拟编队值 和 reset中的初始位置
 '''
 
 mplstyle.use('fast')
@@ -45,9 +45,9 @@ class UAVEnv_F(gym.Env):
         # 定义无人机的动作空间和观测空间
         self.action_space = spaces.Box(low=np.array([-0.03, -0.03, -0.03] * self.uav_num),
                                        high=np.array([0.03, 0.03, 0.03] * self.uav_num), dtype=np.float32)
-        # 状态包括x y z vx vy vz xl yl zl
-        self.observation_space = spaces.Box(low=np.array([0, 0, 0, -0.2, -0.2, -0.2, -self.map_w, -self.map_h, -self.map_z] * self.uav_num),
-                                            high=np.array([self.map_w, self.map_h, self.map_z, 0.2, 0.2, 0.2, self.map_w, self.map_h, self.map_z] *
+        # 状态包括x y z vx vy vz xl yl zl vlx vly vlz
+        self.observation_space = spaces.Box(low=np.array([0, 0, 0, -0.2, -0.2, -0.2, -self.map_w, -self.map_h, -self.map_z, -0.4, -0.4, -0.4] * self.uav_num),
+                                            high=np.array([self.map_w, self.map_h, self.map_z, 0.2, 0.2, 0.2, self.map_w, self.map_h, self.map_z, 0.4, 0.4, 0.4] *
                                                           self.uav_num), dtype=np.float32)
 
     # 记录无人机的飞行轨迹函数
@@ -63,15 +63,27 @@ class UAVEnv_F(gym.Env):
     # 无人机的动作更新函数
     def step(self, actions):
         self.env_t += 1
-        self.state[:3] += actions[:3]  # update follower x, y, z
-        acc, _ = self.model.predict(self.state_leader) # 得到领导者的加速度
-        last_speed_leader = self.state_leader[3:6]
-        self.state_leader[3:6] +=acc[:3]
+
+        # follower 速度更新
+        FollowerLastSpeed = self.state[3:6]
+        self.state[3:6] += actions[:3]
+        self.state[3:6] = np.clip(self.state[3:6], -0.2, 0.2)
+
+        # leader 速度更新
+        LeaderAccelerate, _ = self.model.predict(self.state_leader)
+        LeaderLastSpeed = self.state_leader[3:6]
+        self.state_leader[3:6] +=LeaderAccelerate[:3]
         self.state_leader[3:6] = np.clip(self.state_leader[3:6], -0.2, 0.2)
+
         # 更新领导者 x, y, z
         for i in range(3):
-            dis = (last_speed_leader[i] + self.state_leader[i+3]) / 2
+            dis = (LeaderLastSpeed[i] + self.state_leader[i+3]) / 2
             self.state_leader[i] += dis
+
+        # 更新跟随者x, y, z
+        for i in range(3):
+            dis = (FollowerLastSpeed[i] + self.state[i+3]) / 2
+            self.state[i] += dis
         '''
         边界
         '''
@@ -87,15 +99,19 @@ class UAVEnv_F(gym.Env):
         '''
         机毁人亡
         '''
-        pos_x_diff_leader = self.state_leader[0] - 25 # uav[x] - obstacle_x
-        pos_y_diff_leader = self.state_leader[1] - 25 # uav[y] - obstacle_y
-        pos_x_diff_follower = self.state[0] - 25
-        pos_y_diff_follower = self.state[1] - 25
-        distance_to_obstacle = math.hypot(pos_x_diff_leader, pos_y_diff_leader) # 距离障碍物中心的距离
-        distance_to_obstacle_follower = math.hypot(pos_x_diff_follower, pos_y_diff_follower) # 距离障碍物中心的距离
+        pos_x_diff_1 = self.state_leader[0] - 15 # uav[x] - obstacle_x
+        pos_y_diff_1 = self.state_leader[1] - 15 # uav[y] - obstacle_y
+        pos_x_diff_2 = self.state_leader[0] - 25 # uav[x] - obstacle_x
+        pos_y_diff_2 = self.state_leader[1] - 25 # uav[y] - obstacle_y
+        pos_x_diff_3 = self.state_leader[0] - 35 # uav[x] - obstacle_x
+        pos_y_diff_3 = self.state_leader[1] - 35 # uav[y] - obstacle_y
+        distance_to_obstacle1 = math.hypot(pos_x_diff_1, pos_y_diff_1) # 距离障碍物中心的距离1
+        distance_to_obstacle2 = math.hypot(pos_x_diff_2, pos_y_diff_2) # 距离障碍物中心的距离2
+        distance_to_obstacle3 = math.hypot(pos_x_diff_3, pos_y_diff_3) # 距离障碍物中心的距离3
+        min_distance_to_obs = min(distance_to_obstacle3, distance_to_obstacle2, distance_to_obstacle1)
 
-        if distance_to_obstacle <= 10:
-            self.state_leader[6] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
+        if min_distance_to_obs <= 8:
+            self.state_leader[9] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
         grid_x = int(self.state_leader[0])
         grid_y = int(self.state_leader[1])
         if self.buildings[grid_x * 50 + grid_y][4] == 2:
@@ -105,27 +121,9 @@ class UAVEnv_F(gym.Env):
         else:
             height = 0
         if self.state_leader[2] <= height:
-            self.state_leader[6] = 1
+            self.state_leader[9] = 1
             self.done = True
             print("!!!!!!!!!!!!!!! leader down !!!!!!!!!!!!!!!!!")
-
-        if distance_to_obstacle_follower <= 10:
-            self.state[6] = 1   # 更新障碍物标志位 obstacle_flag = 1 代表无人机附近有障碍物
-        grid_x_f = int(self.state[0])
-        grid_y_f = int(self.state[1])
-        if self.buildings[grid_x_f * 50 + grid_y_f][4] == 2:
-            height = 10
-        elif self.buildings[grid_x_f * 50 + grid_y_f][4] == 3:
-            height = 10
-        else:
-            height = 0
-        if self.state[2] <= height:
-            self.state[6] = 1
-            r_obstacle = 0
-            # self.done = True
-            # print("!!!!!!!!!!!!!!! follower down !!!!!!!!!!!!!!!!!")
-        else:
-            r_obstacle = 0
 
         '''
         抵达终点
@@ -144,13 +142,15 @@ class UAVEnv_F(gym.Env):
         '''
         r_team_keep
         训练不同得跟随者时，更改此处的虚拟编队差即可
+        (4 0 2)  +2 -2 +0
+        (0 0 2)  -2 -2 +0
         '''
         x_diff_f_to_l = self.state_leader[0]+2 - self.state[0]
         y_diff_f_to_l = self.state_leader[1]-2 - self.state[1]
         z_diff_f_to_l = self.state_leader[2] - self.state[2]
-        self.state[3] = self.state_leader[0]+2
-        self.state[4] = self.state_leader[1]-2
-        self.state[5] = self.state_leader[2]
+        self.state[6] = x_diff_f_to_l
+        self.state[7] = y_diff_f_to_l
+        self.state[8] = z_diff_f_to_l
 
         distance_to_leader = math.hypot(x_diff_f_to_l, y_diff_f_to_l, z_diff_f_to_l)
 
@@ -164,14 +164,17 @@ class UAVEnv_F(gym.Env):
         r_speed_same
         '''
         leader_speed = self.state_leader[3:6]
-        x_speed_diff = leader_speed[0] - actions[0]
-        y_speed_diff = leader_speed[1] - actions[1]
-        z_speed_diff = leader_speed[2] - actions[2]
+        x_speed_diff = leader_speed[0] - self.state[3]
+        y_speed_diff = leader_speed[1] - self.state[4]
+        z_speed_diff = leader_speed[2] - self.state[5]
         speed_diff = math.hypot(x_speed_diff, y_speed_diff, z_speed_diff)
         if speed_diff > 0.1:
             r_speed_same = -1 * speed_diff
         else:
             r_speed_same = 0.5
+        self.state[9] = x_speed_diff
+        self.state[10] = y_speed_diff
+        self.state[11] = z_speed_diff
 
         '''
         截断条件
@@ -179,7 +182,7 @@ class UAVEnv_F(gym.Env):
         if self.env_t >= 500:
             self.truncated = True
 
-        self.r = r_team_keep + r_speed_same + r_edge + r_obstacle
+        self.r = r_team_keep + r_speed_same
         return np.array(self.state, dtype=np.float32), float(self.r), self.done, self.truncated, self.info
 
     def reset(self, seed = None):
