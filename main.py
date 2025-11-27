@@ -17,7 +17,7 @@ uav_num, map_w, map_h, map_z, buildings_location, buildings, match_pairs, uav_r,
 # 初始化Env模块
 env = UAVEnv(uav_num, map_w, map_h, map_z, Init_state, buildings)
 check_env(env, warn=True)
-n_actions = env.action_space.shape[-1]
+# n_actions = env.action_space.shape[-1]
 # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.05 * np.ones(n_actions))
 env = Monitor(env)
 train_env_1 = make_vec_env(lambda : env, n_envs=1)
@@ -35,7 +35,7 @@ train_env_1 = make_vec_env(lambda : env, n_envs=1)
 '''
 训练跟随者1
 '''
-model_pre_trained_leader = SAC.load('E:\RL\stable-baselin3\models\save_3d_obstacle_22.zip', env=train_env_1)
+model_pre_trained_leader = SAC.load(r'E:\develop\develop(python)\RL\UAV-PATH-PLANNING-GD\models\save_3d_obstacle_22.zip', env=train_env_1)
 # 初始化Env模块
 env = UAVEnv_F(uav_num, map_w, map_h, map_z, Init_state, buildings, model_pre_trained_leader)
 check_env(env, warn=True)
@@ -43,9 +43,9 @@ env = Monitor(env)
 train_env = make_vec_env(lambda : env, n_envs=1)
 # 新建一个SAC模型
 # model = SAC(policy="MlpPolicy", env=train_env, verbose=1)
-model = SAC.load("E:\RL\stable-baselin3\models\save_3d_follower_(4,0)_12_states.zip", env=train_env, verbose=1)
+model = SAC.load(r"E:\develop\develop(python)\RL\UAV-PATH-PLANNING-GD\models\save_3d_follower_(4,0)1_12_states.zip", env=train_env, verbose=1)
 model.learn(total_timesteps=150000, progress_bar=True)
-model.save('E:\RL\stable-baselin3\models\save_3d_follower_(4,0)1_12_states')
+model.save(r'E:\develop\develop(python)\RL\UAV-PATH-PLANNING-GD\models\save_3d_follower_(4,0)1_121_states.zip')
 
 '''
 训练跟随者2

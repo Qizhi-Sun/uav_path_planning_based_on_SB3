@@ -5,9 +5,9 @@ import seaborn as sns
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置默认字体为黑体
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示为方块的问题
 
-leader_data_raw = np.loadtxt('episode_rewards.txt')
-follower1_data_raw = np.loadtxt('episode_rewards_f1.txt')
-follower2_data_raw = np.loadtxt("episode_rewards_f2.txt")
+leader_data_raw = np.loadtxt('logs/episode_rewards.txt')
+follower1_data_raw = np.loadtxt('logs/episode_rewards_f1.txt')
+follower2_data_raw = np.loadtxt("logs/episode_rewards_f2.txt")
 
 leader_data = leader_data_raw[:500]
 follower1_data = follower1_data_raw[:500] + 5000

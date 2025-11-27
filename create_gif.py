@@ -28,6 +28,7 @@ def create_gif(image_folder, output_gif, fps=10):
 
 
 # 使用示例
-image_folder = r'E:\RL\stable-baselin3\fig'  # 替换为你的图像文件夹路径
-output_gif = 'output2.gif'  # 替换为你想要的输出 GIF 文件名
-create_gif(image_folder, output_gif, fps=10)
+if __name__ == '__main__':
+    image_folder = r'E:\RL\stable-baselin3\fig'  # 替换为你的图像文件夹路径
+    output_gif = 'output2.gif'  # 替换为你想要的输出 GIF 文件名
+    create_gif(image_folder, output_gif, fps=10)

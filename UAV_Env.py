@@ -22,7 +22,7 @@ z_goal = match_pairs_WH[0][2][2]
 # 初始化无人机环境
 class UAVEnv(gym.Env):
     def __init__(self, uav_num, map_w, map_h, map_z, Init_state, buildings):
-        super(UAVEnv, self).__init__()
+        super().__init__()
         self.uav_num = uav_num
         self.map_w = map_w
         self.map_h = map_h

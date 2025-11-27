@@ -34,3 +34,4 @@ def create_mp4(image_folder, output_mp4, fps=10):
 image_folder = r'E:\RL\stable-baselin3\change_team'  # 替换为你的图像文件夹路径
 output_mp4 = 'change.mp4'  # 替换为你想要的输出 MP4 文件名
 create_mp4(image_folder, output_mp4, fps=10)
+
